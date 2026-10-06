@@ -166,4 +166,4 @@ export interface ImportProgress {
   current: string;
 }
 
-export type RefSortField = "createdAt" | "title" | "fileSize";
+export type RefSortField = "createdAt" | "title" | "fileSize" | "random";

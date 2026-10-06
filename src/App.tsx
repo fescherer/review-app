@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "./components/Toast";
 import { errorMessage } from "./lib/util";
 import { FindPage } from "./pages/FindPage";
+import { ReferencesPage } from "./pages/ReferencesPage";
 import { ReviewsPage } from "./pages/ReviewsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { WelcomePage } from "./pages/WelcomePage";
@@ -16,7 +17,7 @@ type Boot =
   | { status: "error"; message: string; path: string }
   | { status: "ready"; root: string };
 
-type Tab = "reviews" | "find" | "settings";
+type Tab = "reviews" | "find" | "references" | "settings";
 
 export default function App() {
   const toast = useToast();
@@ -116,6 +117,7 @@ export default function App() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "reviews", label: "Reviews" },
     { id: "find", label: "Find" },
+    { id: "references", label: "References" },
   ];
 
   return (
@@ -139,6 +141,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6" key={boot.root}>
         {tab === "reviews" && <ReviewsPage />}
         {tab === "find" && <FindPage />}
+        {tab === "references" && <ReferencesPage />}
         {tab === "settings" && <SettingsPage onChangeFolder={chooseFolder} />}
       </main>
     </div>

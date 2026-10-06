@@ -35,6 +35,17 @@ export const listItemInputSchema = z.object({
   images: imageSelectionSchema,
 });
 
+export const referenceUpdateSchema = z.object({
+  title: z.string().trim().min(1, "Title is required.").max(300, "Title is too long."),
+  notes: z.string().max(100_000),
+  sourceUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((s) => !s || /^https?:\/\/\S+$/i.test(s), "Source URL must start with http:// or https://."),
+  tagIds: z.array(z.string()),
+});
+
 /** Parses with zod and throws a single readable error. */
 export function validate<T extends z.ZodType>(schema: T, value: unknown): z.infer<T> {
   const res = schema.safeParse(value);

@@ -69,21 +69,15 @@ export async function pickImageFiles(): Promise<ImageDraft[]> {
     filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
   });
   if (!picked) return [];
-  const paths = Array.isArray(picked) ? picked : [picked];
+  return draftsFromPaths(Array.isArray(picked) ? picked : [picked]);
+}
+
+/** Reads image files (from the picker or a drag & drop) into drafts; other files are skipped. */
+export async function draftsFromPaths(paths: string[]): Promise<ImageDraft[]> {
   const drafts: ImageDraft[] = [];
   for (const p of paths) {
     if (!isSupportedImage(p)) continue;
     drafts.push(newDraft(baseName(p), await readFile(p)));
-  }
-  return drafts;
-}
-
-/** Files dropped onto the window (HTML5 drag & drop). */
-export async function draftsFromFiles(files: FileList | File[]): Promise<ImageDraft[]> {
-  const drafts: ImageDraft[] = [];
-  for (const f of Array.from(files)) {
-    if (!isSupportedImage(f.name)) continue;
-    drafts.push(newDraft(f.name, new Uint8Array(await f.arrayBuffer())));
   }
   return drafts;
 }
@@ -94,36 +88,102 @@ export function releaseDrafts(drafts: ImageDraft[]): void {
 
 // ---------------------------------------------------------------- thumbnails
 
-/** Resizes to at most THUMB_MAX_WIDTH wide with a canvas. Returns null if the format can't be decoded. */
-export async function makeThumbnail(bytes: Uint8Array, fileName: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
+export interface Thumbnail {
+  bytes: Uint8Array;
+  ext: string;
+}
+
+/** Draws a decoded image/video frame scaled to at most THUMB_MAX_WIDTH wide and encodes it (WebP, JPEG fallback). */
+async function encodeThumbnail(source: CanvasImageSource, width: number, height: number): Promise<Thumbnail | null> {
+  const scale = Math.min(1, THUMB_MAX_WIDTH / width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const toBlob = (type: string, q: number) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, q));
+  let blob = await toBlob("image/webp", 0.82);
+  let ext = "webp";
+  if (!blob || blob.type !== "image/webp") {
+    blob = await toBlob("image/jpeg", 0.85);
+    ext = "jpg";
+  }
+  return blob ? { bytes: new Uint8Array(await blob.arrayBuffer()), ext } : null;
+}
+
+async function thumbnailOfImageUrl(url: string): Promise<Thumbnail | null> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = url;
+  await img.decode();
+  return encodeThumbnail(img, img.naturalWidth || 600, img.naturalHeight || 900);
+}
+
+/** Thumbnail from image bytes in memory. Returns null if the format can't be decoded. */
+export async function makeThumbnail(bytes: Uint8Array, fileName: string): Promise<Thumbnail | null> {
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: MIME[extOf(fileName)] }));
   try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const w0 = img.naturalWidth || 600;
-    const h0 = img.naturalHeight || 900;
-    const scale = Math.min(1, THUMB_MAX_WIDTH / w0);
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(w0 * scale));
-    canvas.height = Math.max(1, Math.round(h0 * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const toBlob = (type: string, q: number) =>
-      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, q));
-    let blob = await toBlob("image/webp", 0.82);
-    let ext = "webp";
-    if (!blob || blob.type !== "image/webp") {
-      blob = await toBlob("image/jpeg", 0.85);
-      ext = "jpg";
-    }
-    return blob ? { bytes: new Uint8Array(await blob.arrayBuffer()), ext } : null;
+    return await thumbnailOfImageUrl(url);
   } catch {
     return null;
   } finally {
     URL.revokeObjectURL(url);
+  }
+}
+
+/** Thumbnail of an image file already inside the data folder (streamed via the asset protocol). */
+export async function makeImageFileThumbnail(relPath: string): Promise<Thumbnail | null> {
+  try {
+    return await thumbnailOfImageUrl(imageSrc(relPath));
+  } catch {
+    return null;
+  }
+}
+
+function waitFor(el: HTMLMediaElement, event: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => done(new Error("timeout")), timeoutMs);
+    const onEvent = () => done();
+    const onError = () => done(new Error("media error"));
+    function done(err?: Error) {
+      clearTimeout(timer);
+      el.removeEventListener(event, onEvent);
+      el.removeEventListener("error", onError);
+      if (err) reject(err);
+      else resolve();
+    }
+    el.addEventListener(event, onEvent, { once: true });
+    el.addEventListener("error", onError, { once: true });
+  });
+}
+
+/** Captures a frame around 1 s into a video file inside the data folder. Null if the webview can't decode it. */
+export async function makeVideoThumbnail(relPath: string): Promise<Thumbnail | null> {
+  const video = document.createElement("video");
+  video.crossOrigin = "anonymous";
+  video.muted = true;
+  video.preload = "auto";
+  video.playsInline = true;
+  try {
+    const loaded = waitFor(video, "loadeddata", 20000);
+    video.src = imageSrc(relPath);
+    await loaded;
+    if (!video.videoWidth || !video.videoHeight) return null;
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const target = duration > 0 ? Math.min(1, duration / 2) : 0;
+    if (target > 0) {
+      const seeked = waitFor(video, "seeked", 15000);
+      video.currentTime = target;
+      await seeked;
+    }
+    return await encodeThumbnail(video, video.videoWidth, video.videoHeight);
+  } catch {
+    return null;
+  } finally {
+    video.removeAttribute("src");
+    video.load();
   }
 }
 

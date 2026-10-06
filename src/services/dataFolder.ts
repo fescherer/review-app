@@ -10,7 +10,7 @@ import { ensureDir, joinAbs, setRoot } from "./fileSystem";
 import { seedDefaultTags } from "./tags";
 
 export const DB_FILE = "media.db";
-export const FOLDERS = ["defaults", "reviews", "lists", "exports"] as const;
+export const FOLDERS = ["defaults", "reviews", "lists", "references", "exports"] as const;
 
 export type FolderKind = "missing" | "empty" | "library" | "other";
 

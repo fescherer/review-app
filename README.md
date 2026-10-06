@@ -63,6 +63,7 @@ Tips:
   lists/
     <list-slug>/           one folder per list, e.g. anime-watchlist/
       <item-id>/           images + thumbnails of one list item
+  references/              flat folder: <id>.<ext> files + <id>.thumb.webp thumbnails (no subfolders)
   exports/                 JSON backups from Settings → Export
 ```
 
@@ -86,7 +87,17 @@ Tips:
 - **Find**: lists such as watchlists or reading lists. Items appear in a new random order (Fisher–Yates) every time
   you open a list, and **Shuffle again** reshuffles them. **Mark as done** opens a pre-filled review form. Saving it
   moves the images into the review's folder and removes the item from the list.
-- **Settings**: data folder, manage tags and lists, and export everything to `exports/media-backup-<time>.json`.
+- **References**: a flat library of any files (images, videos, text, PDFs, ...) organized by free-form tags
+  instead of folders. Add files with the picker, drag & drop (files or whole folders) or **Import folder**. Files
+  are copied by the OS (not loaded into memory), with a progress bar for big imports. Before importing you can
+  apply the same tags to all files and edit each title. Thumbnails: images are resized, videos get a frame from
+  about 1 second in, text files show their first lines, other files show an icon. The detail view has an image
+  zoom, a video player (with "Open in default app" when the webview can't play a format such as some
+  .mkv/.avi files), rendered text/Markdown, and "Open in default app" / "Show in folder". Filter by tags
+  (**All tags** = AND, **Any tag** = OR) with live counts (combinations with no matches are dimmed), by file type,
+  and search titles, notes, original file names and the contents of text files. Sort by date added, title or
+  size, or press **Shuffle** for a random order (Fisher–Yates).
+- **Settings**: data folder, reference tags (rename, merge, delete, usage counts), manage tags and lists, and export everything to `exports/media-backup-<time>.json`.
 
 ## Code layout
 

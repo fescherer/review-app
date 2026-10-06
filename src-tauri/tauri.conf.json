@@ -17,12 +17,11 @@
         "width": 1280,
         "height": 840,
         "minWidth": 720,
-        "minHeight": 520,
-        "dragDropEnabled": false
+        "minHeight": 520
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost blob: data:; media-src 'self' asset: http://asset.localhost blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost http://asset.localhost",
       "devCsp": null,
       "assetProtocol": {
         "enable": true,
@@ -32,7 +31,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

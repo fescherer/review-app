@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DEFAULT_IMAGES } from "../services/defaults";
-import { draftFromDefault, draftSrc, draftsFromFiles, imageSrc, pickImageFiles, releaseDrafts } from "../services/images";
+import { draftFromDefault, draftSrc, draftsFromPaths, imageSrc, pickImageFiles, releaseDrafts } from "../services/images";
+import { useFileDrop } from "../lib/fileDrop";
 import { errorMessage } from "../lib/util";
 import type { ImageDraft, ImageSelection } from "../types";
 import { useToast } from "./Toast";
@@ -16,7 +17,6 @@ interface Props {
  */
 export function ImagePicker({ value, onChange }: Props) {
   const toast = useToast();
-  const [dragging, setDragging] = useState(false);
   const [showDefaults, setShowDefaults] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -45,24 +45,17 @@ export function ImagePicker({ value, onChange }: Props) {
     }
   };
 
+  const dragging = useFileDrop((paths) =>
+    run(async () => {
+      const drafts = await draftsFromPaths(paths);
+      if (!drafts.length) toast("Those files aren't supported images.", "error");
+      return drafts;
+    }),
+  );
+
   return (
     <div className="flex flex-col gap-3">
       <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          const files = e.dataTransfer.files;
-          void run(async () => {
-            const drafts = await draftsFromFiles(files);
-            if (files.length && !drafts.length) toast("Those files aren't supported images.", "error");
-            return drafts;
-          });
-        }}
         className={`rounded-xl border-2 border-dashed p-3 transition-colors ${
           dragging ? "border-accent-400 bg-accent-500/10" : "border-zinc-700"
         }`}

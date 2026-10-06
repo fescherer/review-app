@@ -9,8 +9,9 @@ import { DB_FILE } from "../services/dataFolder";
 import { exportAll } from "../services/exportService";
 import { getRoot, joinAbs } from "../services/fileSystem";
 import * as lists from "../services/lists";
+import * as refTags from "../services/refTags";
 import * as tags from "../services/tags";
-import type { MediaList, Tag } from "../types";
+import type { MediaList, RefTag, Tag } from "../types";
 
 interface Props {
   onChangeFolder: () => void;
@@ -22,21 +23,25 @@ type Dialog =
   | { kind: "deleteTag"; tag: Tag }
   | { kind: "newList" }
   | { kind: "renameList"; list: MediaList }
+  | { kind: "renameRefTag"; tag: RefTag }
+  | { kind: "mergeRefTag"; tag: RefTag }
   | null;
 
 export function SettingsPage({ onChangeFolder }: Props) {
   const toast = useToast();
   const [tagRows, setTagRows] = useState<Tag[]>([]);
   const [listRows, setListRows] = useState<MediaList[]>([]);
+  const [refTagRows, setRefTagRows] = useState<RefTag[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [exporting, setExporting] = useState(false);
   const root = getRoot();
 
   const reload = useCallback(async () => {
     try {
-      const [t, l] = await Promise.all([tags.listTags(), lists.listLists()]);
+      const [t, l, rt] = await Promise.all([tags.listTags(), lists.listLists(), refTags.listRefTags()]);
       setTagRows(t);
       setListRows(l);
+      setRefTagRows(rt);
     } catch (e) {
       toast(errorMessage(e), "error");
     }
@@ -67,6 +72,21 @@ export function SettingsPage({ onChangeFolder }: Props) {
     try {
       await lists.deleteList(list.id);
       toast("List deleted.");
+      await reload();
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  };
+
+  const deleteRefTag = async (tag: RefTag) => {
+    const msg =
+      tag.refCount > 0
+        ? `Delete the tag "${tag.name}"?\n\nIt will be removed from ${tag.refCount} reference(s). The files are kept.`
+        : `Delete the tag "${tag.name}"?`;
+    if (!(await ask(msg, { title: "Delete tag", kind: "warning", okLabel: "Delete" }))) return;
+    try {
+      await refTags.deleteRefTag(tag.id);
+      toast("Tag deleted.");
       await reload();
     } catch (e) {
       toast(errorMessage(e), "error");
@@ -140,6 +160,31 @@ export function SettingsPage({ onChangeFolder }: Props) {
         </Rows>
       </Section>
 
+      <Section title="Reference tags" description="Free-form tags for the References tab. They exist only in the database, not as folders.">
+        <Rows>
+          {refTagRows.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800/40">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{t.name}</div>
+                <div className="text-xs text-zinc-500">
+                  {t.refCount} reference{t.refCount === 1 ? "" : "s"}
+                </div>
+              </div>
+              <button className="btn btn-ghost px-2.5 py-1 text-xs" onClick={() => setDialog({ kind: "renameRefTag", tag: t })}>Rename</button>
+              <button
+                className="btn btn-ghost px-2.5 py-1 text-xs"
+                onClick={() => setDialog({ kind: "mergeRefTag", tag: t })}
+                disabled={refTagRows.length < 2}
+              >
+                Merge…
+              </button>
+              <button className="btn btn-ghost px-2.5 py-1 text-xs text-red-300 hover:text-red-200" onClick={() => deleteRefTag(t)}>Delete</button>
+            </div>
+          ))}
+          {refTagRows.length === 0 && <p className="px-4 py-3 text-sm text-zinc-500">No reference tags yet.</p>}
+        </Rows>
+      </Section>
+
       <Section title="Export" description="Save every review and list item as a human-readable JSON file in exports/.">
         <button className="btn btn-secondary" onClick={runExport} disabled={exporting}>
           {exporting ? "Exporting…" : "Export to JSON"}
@@ -161,6 +206,22 @@ export function SettingsPage({ onChangeFolder }: Props) {
       {dialog?.kind === "renameList" && (
         <PromptModal title="Rename list" label="List name" initial={dialog.list.name} onClose={() => setDialog(null)}
           onSubmit={async (name) => { await lists.renameList(dialog.list.id, name); toast("List renamed."); await reload(); }} />
+      )}
+      {dialog?.kind === "renameRefTag" && (
+        <PromptModal title="Rename tag" label="Tag name" initial={dialog.tag.name} onClose={() => setDialog(null)}
+          onSubmit={async (name) => { await refTags.renameRefTag(dialog.tag.id, name); toast("Tag renamed."); await reload(); }} />
+      )}
+      {dialog?.kind === "mergeRefTag" && (
+        <MergeRefTagDialog
+          tag={dialog.tag}
+          others={refTagRows.filter((t) => t.id !== dialog.tag.id)}
+          onClose={() => setDialog(null)}
+          onDone={async () => {
+            setDialog(null);
+            toast("Tags merged.");
+            await reload();
+          }}
+        />
       )}
       {dialog?.kind === "deleteTag" && (
         <DeleteTagDialog
@@ -225,6 +286,51 @@ function DeleteTagDialog({ tag, others, onClose, onDone }: { tag: Tag; others: T
           </select>
         </div>
       )}
+    </Modal>
+  );
+}
+
+function MergeRefTagDialog({ tag, others, onClose, onDone }: { tag: RefTag; others: RefTag[]; onClose: () => void; onDone: () => Promise<void> }) {
+  const toast = useToast();
+  const [target, setTarget] = useState(others[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const targetName = others.find((t) => t.id === target)?.name ?? "";
+
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await refTags.mergeRefTags(tag.id, target);
+      await onDone();
+    } catch (e) {
+      toast(errorMessage(e), "error");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Merge “${tag.name}”`}
+      size="md"
+      onClose={onClose}
+      locked={busy}
+      footer={
+        <>
+          <button className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={confirm} disabled={busy || !target}>Merge</button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <label className="label" htmlFor="merge-target">Merge into</label>
+        <select id="merge-target" className="input" value={target} onChange={(e) => setTarget(e.target.value)}>
+          {others.map((t) => (
+            <option key={t.id} value={t.id}>{t.name} ({t.refCount})</option>
+          ))}
+        </select>
+        <p className="text-sm text-zinc-400">
+          The {tag.refCount} reference(s) tagged “{tag.name}” will be tagged “{targetName}” instead, and “{tag.name}” will be deleted.
+        </p>
+      </div>
     </Modal>
   );
 }
