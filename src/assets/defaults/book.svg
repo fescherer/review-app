@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#134e4a"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="900" fill="url(#g)"/>
+  <g opacity="0.08" fill="#fff"><circle cx="520" cy="120" r="180"/><circle cx="60" cy="820" r="220"/></g>
+  <g transform="translate(150 230) scale(1.5)" opacity="0.92"><path fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M20 40c30-12 55-12 80 6 25-18 50-18 80-6v120c-30-12-55-12-80 6-25-18-50-18-80-6z"/><path fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M100 46v120"/></g>
+  <text x="300" y="690" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="64" font-weight="600" fill="#fff" opacity="0.92" letter-spacing="4">BOOK</text>
+</svg>

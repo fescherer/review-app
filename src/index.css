@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --color-accent-300: oklch(0.81 0.1 277);
+  --color-accent-400: oklch(0.71 0.15 277);
+  --color-accent-500: oklch(0.62 0.2 277);
+  --color-accent-600: oklch(0.54 0.22 277);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-zinc-950);
+  color: var(--color-zinc-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin dark scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-zinc-700) transparent;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors
+      select-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2
+      focus-visible:outline-accent-400;
+  }
+  .btn-primary {
+    @apply bg-accent-600 text-white hover:bg-accent-500;
+  }
+  .btn-secondary {
+    @apply bg-zinc-800 text-zinc-100 hover:bg-zinc-700;
+  }
+  .btn-ghost {
+    @apply text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100;
+  }
+  .btn-danger {
+    @apply bg-red-600/90 text-white hover:bg-red-500;
+  }
+  .input {
+    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500
+      outline-none transition-colors focus:border-accent-500 focus:ring-2 focus:ring-accent-500/30;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors;
+  }
+  .card-grid {
+    @apply grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))];
+  }
+}
+
+/* Markdown rendering for review text and descriptions */
+.markdown {
+  line-height: 1.7;
+  color: var(--color-zinc-300);
+  overflow-wrap: anywhere;
+}
+.markdown > * + * {
+  margin-top: 0.85em;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  color: var(--color-zinc-100);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.markdown h1 {
+  font-size: 1.4em;
+}
+.markdown h2 {
+  font-size: 1.2em;
+}
+.markdown h3 {
+  font-size: 1.05em;
+}
+.markdown a {
+  color: var(--color-accent-300);
+  text-decoration: underline;
+}
+.markdown ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.markdown ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.markdown blockquote {
+  border-left: 3px solid var(--color-zinc-700);
+  padding-left: 1em;
+  color: var(--color-zinc-400);
+}
+.markdown code {
+  background: var(--color-zinc-800);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.markdown pre {
+  background: var(--color-zinc-900);
+  border-radius: 8px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+}
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+.markdown hr {
+  border-color: var(--color-zinc-800);
+}
+.markdown strong {
+  color: var(--color-zinc-100);
+}

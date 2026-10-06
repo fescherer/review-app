@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="900" fill="url(#g)"/>
+  <g opacity="0.08" fill="#fff"><circle cx="520" cy="120" r="180"/><circle cx="60" cy="820" r="220"/></g>
+  <g transform="translate(150 230) scale(1.5)" opacity="0.92"><path fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M55 60h90c25 0 40 30 42 70 1 25-20 35-35 15l-17-20H65l-17 20c-15 20-36 10-35-15 2-40 17-70 42-70z"/><path fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M60 95v30M45 110h30"/><circle cx="135" cy="100" r="7" fill="#fff"/><circle cx="155" cy="120" r="7" fill="#fff"/></g>
+  <text x="300" y="690" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="64" font-weight="600" fill="#fff" opacity="0.92" letter-spacing="4">GAME</text>
+</svg>
