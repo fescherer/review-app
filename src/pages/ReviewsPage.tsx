@@ -12,7 +12,6 @@ import * as reviews from "../services/reviews";
 import { listTags } from "../services/tags";
 import type { Review, ReviewFilters, ReviewSortField, Tag } from "../types";
 
-const GRADE_OPTIONS = Array.from({ length: 11 }, (_, g) => g);
 const SORT_LABELS: Record<ReviewSortField, string> = {
   reviewDate: "Review date",
   grade: "Grade",
@@ -28,7 +27,6 @@ export function ReviewsPage() {
   const [items, setItems] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ReviewFilters>(reviews.DEFAULT_FILTERS);
-  const [showFilters, setShowFilters] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const text = useDebounced(filters.text);
   const query = useMemo(() => ({ ...filters, text }), [filters, text]);
@@ -55,10 +53,6 @@ export function ReviewsPage() {
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const current = panel && panel.kind !== "new" ? items.find((r) => r.id === panel.id) : undefined;
 
-  const activeFilterCount =
-    (filters.tagIds.length ? 1 : 0) +
-    (filters.gradeMin > 0 || filters.gradeMax < 10 ? 1 : 0) +
-    (filters.dateFrom || filters.dateTo ? 1 : 0);
 
   const remove = async (review: Review) => {
     const ok = await ask(`Delete "${review.title}"?\n\nThe review and its image folder will be permanently deleted.`, {
@@ -87,9 +81,6 @@ export function ReviewsPage() {
           value={filters.text}
           onChange={(e) => set("text", e.target.value)}
         />
-        <button className={`btn ${showFilters ? "btn-secondary" : "btn-ghost"}`} onClick={() => setShowFilters((s) => !s)}>
-          Filters{activeFilterCount > 0 && <span className="rounded-full bg-accent-600 px-1.5 text-xs">{activeFilterCount}</span>}
-        </button>
         <div className="flex items-center gap-1">
           <select
             className="input w-auto"
@@ -117,46 +108,7 @@ export function ReviewsPage() {
         </button>
       </div>
 
-      {showFilters && (
-        <div className="grid gap-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 lg:grid-cols-[2fr_1fr_1fr]">
-          <div>
-            <span className="label">Tags</span>
-            <TagChips options={tags} selected={filters.tagIds} onChange={(ids) => set("tagIds", ids)} />
-          </div>
-          <div>
-            <span className="label">Stars</span>
-            <div className="flex items-center gap-2">
-              <select className="input" value={filters.gradeMin} onChange={(e) => set("gradeMin", Number(e.target.value))}>
-                {GRADE_OPTIONS.filter((g) => g <= filters.gradeMax).map((g) => (
-                  <option key={g} value={g}>{g / 2}★</option>
-                ))}
-              </select>
-              <span className="text-zinc-500">–</span>
-              <select className="input" value={filters.gradeMax} onChange={(e) => set("gradeMax", Number(e.target.value))}>
-                {GRADE_OPTIONS.filter((g) => g >= filters.gradeMin).map((g) => (
-                  <option key={g} value={g}>{g / 2}★</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div>
-            <span className="label">Review date</span>
-            <div className="flex items-center gap-2">
-              <input type="date" className="input" value={filters.dateFrom} onChange={(e) => set("dateFrom", e.target.value)} />
-              <span className="text-zinc-500">–</span>
-              <input type="date" className="input" value={filters.dateTo} onChange={(e) => set("dateTo", e.target.value)} />
-            </div>
-          </div>
-          {activeFilterCount > 0 && (
-            <button
-              className="btn btn-ghost justify-self-start lg:col-span-3"
-              onClick={() => setFilters((f) => ({ ...reviews.DEFAULT_FILTERS, text: f.text, sortBy: f.sortBy, sortDir: f.sortDir }))}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      )}
+      <TagChips options={tags} selected={filters.tagIds} onChange={(ids) => set("tagIds", ids)} />
 
       {!loading && (
         <p className="-mt-2 text-xs text-zinc-500">
@@ -166,7 +118,7 @@ export function ReviewsPage() {
 
       {!loading && items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-24 text-center text-zinc-500">
-          {filters.text || activeFilterCount ? (
+          {filters.text || filters.tagIds.length ? (
             <p>No reviews match your search.</p>
           ) : (
             <>

@@ -10,10 +10,6 @@ import { reviewInputSchema, validate } from "./validation";
 export const DEFAULT_FILTERS: ReviewFilters = {
   text: "",
   tagIds: [],
-  gradeMin: 0,
-  gradeMax: 10,
-  dateFrom: "",
-  dateTo: "",
   sortBy: "reviewDate",
   sortDir: "desc",
 };

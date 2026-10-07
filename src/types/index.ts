@@ -97,10 +97,6 @@ export type SortDirection = "asc" | "desc";
 export interface ReviewFilters {
   text: string;
   tagIds: ID[];
-  gradeMin: number;
-  gradeMax: number;
-  dateFrom: DateString | "";
-  dateTo: DateString | "";
   sortBy: ReviewSortField;
   sortDir: SortDirection;
 }

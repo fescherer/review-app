@@ -78,7 +78,7 @@ Tips:
 ## Features
 
 - **Reviews**: a grid of cards (cover, title, stars). Click a card for the gallery, tag, date and the full review
-  (Markdown supported). Search the title and text; filter by tags, star range and review date; sort by review
+  (Markdown supported). Search the title and text; filter by tags (chips below the search bar); sort by review
   date, grade, title or date added.
 - **Grades**: stored as an integer 0–10, shown as 0–5 stars (`grade / 2`, odd grades are half stars). In the form,
   click the left half of a star for a half value.

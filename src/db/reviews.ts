@@ -54,10 +54,6 @@ export async function searchReviews(f: ReviewFilters): Promise<Review[]> {
     where.push(`(title LIKE ${like} ESCAPE '!' OR review_text LIKE ${like} ESCAPE '!')`);
   }
   if (f.tagIds.length) where.push(`tag_id IN (${f.tagIds.map(p).join(",")})`);
-  if (f.gradeMin > 0) where.push(`grade >= ${p(f.gradeMin)}`);
-  if (f.gradeMax < 10) where.push(`grade <= ${p(f.gradeMax)}`);
-  if (f.dateFrom) where.push(`review_date >= ${p(f.dateFrom)}`);
-  if (f.dateTo) where.push(`review_date <= ${p(f.dateTo)}`);
 
   const dir = f.sortDir === "asc" ? "ASC" : "DESC";
   const sql =

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DEFAULT_IMAGES } from "../services/defaults";
 import { draftFromDefault, draftSrc, draftsFromPaths, imageSrc, pickImageFiles, releaseDrafts } from "../services/images";
 import { useFileDrop } from "../lib/fileDrop";
@@ -45,6 +45,55 @@ export function ImagePicker({ value, onChange }: Props) {
     }
   };
 
+  /** Moves an image to another position; the order is saved as each image's position. */
+  const move = (key: string, toIndex: number) => {
+    const from = value.drafts.findIndex((d) => d.key === key);
+    if (from < 0 || toIndex < 0 || toIndex >= value.drafts.length || from === toIndex) return;
+    const drafts = [...value.drafts];
+    const [item] = drafts.splice(from, 1);
+    drafts.splice(toIndex, 0, item);
+    onChange({ ...value, drafts });
+  };
+
+  // Reordering by dragging a tile. Built on pointer events because HTML5 drag & drop inside the
+  // webview is disabled on Windows while Tauri's file drop is active.
+  const latest = useRef({ value, move });
+  latest.current = { value, move };
+  const [reordering, setReordering] = useState<string | null>(null);
+  const suppressClick = useRef(false);
+
+  const startReorder = (e: React.PointerEvent, key: string) => {
+    if (e.button !== 0 || value.drafts.length < 2) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let active = false;
+    const onMove = (ev: PointerEvent) => {
+      if (!active) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return;
+        active = true;
+        setReordering(key);
+      }
+      const over = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>("[data-draft-key]");
+      const overKey = over?.dataset.draftKey;
+      if (overKey && overKey !== key) {
+        const { value: v, move: mv } = latest.current;
+        mv(key, v.drafts.findIndex((d) => d.key === overKey));
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (active) {
+        // A drag shouldn't also count as a click (which would change the cover).
+        suppressClick.current = true;
+        setTimeout(() => (suppressClick.current = false), 0);
+      }
+      setReordering(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   const dragging = useFileDrop((paths) =>
     run(async () => {
       const drafts = await draftsFromPaths(paths);
@@ -62,20 +111,54 @@ export function ImagePicker({ value, onChange }: Props) {
       >
         {value.drafts.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-3">
-            {value.drafts.map((d) => {
+            {value.drafts.map((d, index) => {
               const isCover = d.key === value.coverKey;
               return (
-                <div key={d.key} className="group relative">
+                <div
+                  key={d.key}
+                  data-draft-key={d.key}
+                  onPointerDown={(e) => startReorder(e, d.key)}
+                  className={`group relative touch-none transition-transform ${
+                    reordering === d.key ? "z-10 scale-105 opacity-70" : ""
+                  } ${reordering ? "cursor-grabbing" : ""}`}
+                >
                   <button
                     type="button"
-                    onClick={() => onChange({ ...value, coverKey: d.key })}
-                    title={isCover ? "Cover image" : "Click to make this the cover"}
+                    onClick={() => {
+                      if (!suppressClick.current) onChange({ ...value, coverKey: d.key });
+                    }}
+                    title={isCover ? "Cover image · drag to reorder" : "Click to make this the cover · drag to reorder"}
                     className={`block aspect-[2/3] w-full overflow-hidden rounded-lg border-2 transition ${
                       isCover ? "border-amber-400" : "border-transparent hover:border-zinc-500"
                     }`}
                   >
-                    <img src={draftSrc(d)} alt="" className="h-full w-full object-cover" />
+                    <img src={draftSrc(d)} alt="" draggable={false} className="h-full w-full object-cover" />
                   </button>
+                  {value.drafts.length > 1 && (
+                    <div className="absolute inset-x-1.5 bottom-1.5 hidden items-center justify-between group-hover:flex">
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => move(d.key, index - 1)}
+                        disabled={index === 0}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-xs text-white hover:bg-accent-600 disabled:invisible"
+                        aria-label="Move left"
+                      >
+                        ◀
+                      </button>
+                      <span className="rounded bg-black/75 px-1.5 text-[10px] tabular-nums text-zinc-200">{index + 1}</span>
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => move(d.key, index + 1)}
+                        disabled={index === value.drafts.length - 1}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-black/75 text-xs text-white hover:bg-accent-600 disabled:invisible"
+                        aria-label="Move right"
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  )}
                   {isCover && (
                     <span className="pointer-events-none absolute left-1.5 top-1.5 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-zinc-900">
                       Cover
@@ -83,6 +166,7 @@ export function ImagePicker({ value, onChange }: Props) {
                   )}
                   <button
                     type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => remove(d.key)}
                     className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-black/75 text-xs text-white hover:bg-red-600 group-hover:flex"
                     aria-label="Remove image"
@@ -107,7 +191,9 @@ export function ImagePicker({ value, onChange }: Props) {
         <button type="button" className="btn btn-ghost" onClick={() => setShowDefaults((s) => !s)}>
           {showDefaults ? "Hide default covers" : "Use a default cover"}
         </button>
-        {value.drafts.length > 1 && <span className="text-xs text-zinc-500">Click an image to set it as the cover.</span>}
+        {value.drafts.length > 1 && (
+          <span className="text-xs text-zinc-500">Click an image to set it as the cover · drag (or ◀ ▶) to change the order.</span>
+        )}
       </div>
 
       {showDefaults && (
