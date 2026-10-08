@@ -25,13 +25,21 @@ export interface MediaList {
 
 export type ImageOwnerType = "review" | "list_item";
 
-/** An image stored in the data folder. Paths are relative to the root folder, using "/". */
+/**
+ * A file of a review or list item (an image, or any other file). Paths are relative to the root folder,
+ * using "/". Only images can be the cover.
+ */
 export interface MediaImage {
   id: ID;
   path: string;
+  /** Image/video thumbnail; empty string when the file has none (text, PDF, …). */
   thumbnailPath: string;
   isCover: boolean;
   position: number;
+  fileType: FileType;
+  /** Original file name (null for images saved before files were supported). */
+  fileName: string | null;
+  fileSize: number | null;
 }
 
 export interface Review {
@@ -59,14 +67,24 @@ export interface ListItem {
 }
 
 /**
- * An image in an edit form, before it is persisted.
+ * A file in an edit form, before it is persisted.
  * - stored: already inside the data folder (may live in another item's folder, e.g. "mark as done")
- * - new: bytes picked/dropped by the user, not written yet
- * - default: one of the built-in placeholders in defaults/ (never copied or deleted)
+ * - new: image bytes picked/dropped by the user, not written yet
+ * - file: any other picked/dropped file; copied from `sourcePath` (never read into memory) on save
+ * - default: one of the built-in placeholder images in defaults/ (never copied or deleted)
  */
 export type ImageDraft =
-  | { key: string; kind: "stored"; path: string; thumbnailPath: string }
+  | {
+      key: string;
+      kind: "stored";
+      path: string;
+      thumbnailPath: string;
+      fileType: FileType;
+      fileName: string | null;
+      fileSize: number | null;
+    }
   | { key: string; kind: "new"; bytes: Uint8Array; fileName: string; previewUrl: string }
+  | { key: string; kind: "file"; sourcePath: string; fileName: string; fileSize: number; fileType: FileType }
   | { key: string; kind: "default"; path: string };
 
 export interface ImageSelection {

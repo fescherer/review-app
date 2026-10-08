@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { ImageDraft } from "../types";
+import { isImageDraft } from "./images";
 
 const isoDate = z
   .string()
@@ -16,7 +18,10 @@ const imageSelectionSchema = z
     drafts: z.array(z.any()).min(1, "Add at least one image (or pick a default cover)."),
     coverKey: z.string(),
   })
-  .refine((s) => s.drafts.some((d: { key: string }) => d.key === s.coverKey), "Pick a cover image.");
+  .refine(
+    (s) => s.drafts.some((d: ImageDraft) => d.key === s.coverKey && isImageDraft(d)),
+    "The cover must be an image: add an image (or pick a default cover) and click it to make it the cover.",
+  );
 
 export const reviewInputSchema = z.object({
   tagId: z.string().min(1, "Pick a tag."),

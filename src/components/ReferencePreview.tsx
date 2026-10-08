@@ -1,41 +1,76 @@
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useEffect, useRef, useState } from "react";
 import { errorMessage } from "../lib/util";
+import { toAbs } from "../services/fileSystem";
 import { imageSrc } from "../services/images";
-import { extensionOf, formatSize, isMarkdown, readReferenceText, referencePath } from "../services/references";
-import type { Reference } from "../types";
+import { extensionOf, formatSize, referencePath } from "../services/references";
+import type { FileType, Reference } from "../types";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { Markdown } from "./Markdown";
 
 /** Text files above this size are not rendered inline. */
 const MAX_PREVIEW_TEXT_BYTES = 3 * 1024 * 1024;
 
-interface Props {
-  reference: Reference;
-  onOpenExternally: () => void;
+/** A stored file to preview: a reference, or a file of a review / list item. */
+export interface PreviewFile {
+  /** Relative to the data folder. */
+  path: string;
+  fileType: FileType;
+  /** Original file name (extension shown on the placeholder, Markdown detection). */
+  fileName: string;
+  fileSize: number;
+  thumbnailPath: string | null;
 }
 
-export function ReferencePreview({ reference: r, onOpenExternally }: Props) {
-  if (r.fileType === "image") return <ImageZoom src={imageSrc(referencePath(r))} />;
-  if (r.fileType === "video") return <VideoPreview reference={r} onOpenExternally={onOpenExternally} />;
-  if (r.fileType === "text") return <TextPreview reference={r} onOpenExternally={onOpenExternally} />;
+interface Props {
+  file: PreviewFile;
+  onOpenExternally: () => void;
+  /** Adds a "Show in folder" button next to "Open in default app" on files that can't be previewed. */
+  onShowInFolder?: () => void;
+}
+
+/** Preview of any stored file: image with zoom, video player, rendered text/Markdown, or file icon + actions. */
+export function FilePreview({ file, onOpenExternally, onShowInFolder }: Props) {
+  if (file.fileType === "image") return <ImageZoom src={imageSrc(file.path)} />;
+  if (file.fileType === "video") return <VideoPreview file={file} onOpenExternally={onOpenExternally} onShowInFolder={onShowInFolder} />;
+  if (file.fileType === "text") return <TextPreview file={file} onOpenExternally={onOpenExternally} onShowInFolder={onShowInFolder} />;
   return (
-    <Placeholder reference={r} onOpenExternally={onOpenExternally}>
+    <Placeholder file={file} onOpenExternally={onOpenExternally} onShowInFolder={onShowInFolder}>
       This file type can't be previewed here.
     </Placeholder>
   );
 }
 
-function Placeholder({ reference: r, onOpenExternally, children }: Props & { children: React.ReactNode }) {
+/** Preview in the References tab. */
+export function ReferencePreview({ reference: r, onOpenExternally }: { reference: Reference; onOpenExternally: () => void }) {
+  const file: PreviewFile = {
+    path: referencePath(r),
+    fileType: r.fileType,
+    fileName: r.originalFileName,
+    fileSize: r.fileSize,
+    thumbnailPath: r.thumbnailPath,
+  };
+  return <FilePreview file={file} onOpenExternally={onOpenExternally} />;
+}
+
+function Placeholder({ file, onOpenExternally, onShowInFolder, children }: Props & { children: React.ReactNode }) {
   return (
     <div className="flex h-[28rem] max-h-[60vh] flex-col items-center justify-center gap-3 rounded-xl bg-zinc-950 p-6 text-center text-zinc-400">
-      <FileTypeIcon type={r.fileType} size={56} className="text-zinc-600" />
+      <FileTypeIcon type={file.fileType} size={56} className="text-zinc-600" />
       <span className="text-sm font-semibold tracking-wider text-zinc-500">
-        {extensionOf(r.originalFileName).toUpperCase() || "FILE"} · {formatSize(r.fileSize)}
+        {extensionOf(file.fileName).toUpperCase() || "FILE"} · {formatSize(file.fileSize)}
       </span>
       <p className="max-w-sm text-sm">{children}</p>
-      <button className="btn btn-secondary mt-1" onClick={onOpenExternally}>
-        Open in default app
-      </button>
+      <div className="mt-1 flex flex-wrap justify-center gap-2">
+        <button className="btn btn-secondary" onClick={onOpenExternally}>
+          Open in default app
+        </button>
+        {onShowInFolder && (
+          <button className="btn btn-ghost" onClick={onShowInFolder}>
+            Show in folder
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -125,11 +160,11 @@ function ImageZoom({ src }: { src: string }) {
 
 // ---------------------------------------------------------------- video
 
-function VideoPreview({ reference: r, onOpenExternally }: Props) {
+function VideoPreview({ file, onOpenExternally, onShowInFolder }: Props) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return (
-      <Placeholder reference={r} onOpenExternally={onOpenExternally}>
+      <Placeholder file={file} onOpenExternally={onOpenExternally} onShowInFolder={onShowInFolder}>
         This video format can't be played inside the app (common for some .mkv/.avi files). Open it in your default video
         player instead.
       </Placeholder>
@@ -138,8 +173,8 @@ function VideoPreview({ reference: r, onOpenExternally }: Props) {
   return (
     <div className="flex h-[28rem] max-h-[60vh] items-center justify-center overflow-hidden rounded-xl bg-black">
       <video
-        src={imageSrc(referencePath(r))}
-        poster={r.thumbnailPath ? imageSrc(r.thumbnailPath) : undefined}
+        src={imageSrc(file.path)}
+        poster={file.thumbnailPath ? imageSrc(file.thumbnailPath) : undefined}
         controls
         preload="metadata"
         className="max-h-full max-w-full"
@@ -155,25 +190,25 @@ function VideoPreview({ reference: r, onOpenExternally }: Props) {
 
 // ---------------------------------------------------------------- text
 
-function TextPreview({ reference: r, onOpenExternally }: Props) {
+function TextPreview({ file, onOpenExternally, onShowInFolder }: Props) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const tooBig = r.fileSize > MAX_PREVIEW_TEXT_BYTES;
+  const tooBig = file.fileSize > MAX_PREVIEW_TEXT_BYTES;
 
   useEffect(() => {
     if (tooBig) return;
     let cancelled = false;
-    readReferenceText(r)
+    readTextFile(toAbs(file.path))
       .then((t) => !cancelled && setText(t))
       .catch((e) => !cancelled && setError(errorMessage(e)));
     return () => {
       cancelled = true;
     };
-  }, [r, tooBig]);
+  }, [file.path, tooBig]);
 
   if (tooBig || error) {
     return (
-      <Placeholder reference={r} onOpenExternally={onOpenExternally}>
+      <Placeholder file={file} onOpenExternally={onOpenExternally} onShowInFolder={onShowInFolder}>
         {tooBig ? "This file is too large to preview here." : `Could not read the file: ${error}`}
       </Placeholder>
     );
@@ -182,7 +217,7 @@ function TextPreview({ reference: r, onOpenExternally }: Props) {
     <div className="h-[28rem] max-h-[60vh] overflow-auto rounded-xl bg-zinc-950 p-5">
       {text === null ? (
         <p className="text-sm text-zinc-500">Loading…</p>
-      ) : isMarkdown(r) ? (
+      ) : ["md", "markdown"].includes(extensionOf(file.fileName)) ? (
         <Markdown text={text} />
       ) : (
         <pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-zinc-300">{text}</pre>

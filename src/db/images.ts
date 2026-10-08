@@ -1,4 +1,4 @@
-import type { ID, ImageOwnerType, MediaImage } from "../types";
+import type { FileType, ID, ImageOwnerType, MediaImage } from "../types";
 import { execute, select } from "./client";
 
 interface ImageRow {
@@ -8,6 +8,9 @@ interface ImageRow {
   thumbnail_path: string;
   is_cover: number;
   position: number;
+  file_type?: FileType;
+  file_name?: string | null;
+  file_size?: number | null;
 }
 
 const toImage = (r: ImageRow): MediaImage => ({
@@ -16,6 +19,10 @@ const toImage = (r: ImageRow): MediaImage => ({
   thumbnailPath: r.thumbnail_path,
   isCover: !!r.is_cover,
   position: r.position,
+  // Rows saved before files were supported are images.
+  fileType: r.file_type ?? "image",
+  fileName: r.file_name ?? null,
+  fileSize: r.file_size ?? null,
 });
 
 /** Returns images grouped by owner id, ordered by position. Pass no ids to load every image of that owner type. */
@@ -44,9 +51,20 @@ export async function replaceImages(ownerType: ImageOwnerType, ownerId: ID, imag
   await deleteImagesOf(ownerType, ownerId);
   for (const img of images) {
     await execute(
-      `INSERT INTO images (id, owner_type, owner_id, path, thumbnail_path, is_cover, position)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [img.id, ownerType, ownerId, img.path, img.thumbnailPath, img.isCover ? 1 : 0, img.position],
+      `INSERT INTO images (id, owner_type, owner_id, path, thumbnail_path, is_cover, position, file_type, file_name, file_size)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        img.id,
+        ownerType,
+        ownerId,
+        img.path,
+        img.thumbnailPath,
+        img.isCover ? 1 : 0,
+        img.position,
+        img.fileType,
+        img.fileName,
+        img.fileSize,
+      ],
     );
   }
 }

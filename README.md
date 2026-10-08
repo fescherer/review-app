@@ -59,10 +59,10 @@ Tips:
   defaults/                built-in placeholder covers (book, movie, anime, game…), copied on setup
   reviews/
     <tag-slug>/            one folder per tag, e.g. anime/, book/, movie/
-      <review-id>/         images + thumbnails of one review
+      <review-id>/         files (images, videos, PDFs, text, …) + thumbnails of one review
   lists/
     <list-slug>/           one folder per list, e.g. anime-watchlist/
-      <item-id>/           images + thumbnails of one list item
+      <item-id>/           files + thumbnails of one list item
   references/              flat folder: <id>.<ext> files + <id>.thumb.webp thumbnails (no subfolders)
   exports/                 JSON backups from Settings → Export
 ```
@@ -82,8 +82,11 @@ Tips:
   date, grade, title or date added.
 - **Grades**: stored as an integer 0–10, shown as 0–5 stars (`grade / 2`, odd grades are half stars). In the form,
   click the left half of a star for a half value.
-- **Images**: add one or more with the file picker or drag & drop, or use a default cover. Click an image to make
-  it the cover (the first one is the default cover).
+- **Files**: reviews and list items accept any file (images, GIFs, videos, PDFs, text…) with the file picker or
+  drag & drop, saved in the item's own folder (non-image files are copied by the OS; videos get a thumbnail). Only
+  an image (uploaded or a default cover) can be the cover: click it to choose; the first image is the default.
+  Drag to reorder. The detail view previews every file like the References tab: images with zoom, playable
+  videos, rendered text/Markdown, and for anything else the file icon with "Open in default app" / "Show in folder".
 - **Find**: lists such as watchlists or reading lists. Items appear in a new random order (Fisher–Yates) every time
   you open a list, and **Shuffle again** reshuffles them. **Mark as done** opens a pre-filled review form. Saving it
   moves the images into the review's folder and removes the item from the list.

@@ -1,10 +1,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { copyFile, readFile } from "@tauri-apps/plugin-fs";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { newId, shortId } from "../lib/util";
-import type { ImageDraft, ImageSelection, MediaImage } from "../types";
+import type { FileType, ImageDraft, ImageSelection, MediaImage } from "../types";
 import { isDefaultImagePath } from "./defaults";
 import { baseName, ensureDir, joinRel, moveFile, pathExists, removePath, toAbs, writeBytes } from "./fileSystem";
+import { sourcesFromPaths } from "./references";
 
 export const THUMB_MAX_WIDTH = 400;
 
@@ -17,6 +19,7 @@ const MIME: Record<string, string> = {
   bmp: "image/bmp",
   avif: "image/avif",
   svg: "image/svg+xml",
+  ico: "image/x-icon",
 };
 export const IMAGE_EXTENSIONS = Object.keys(MIME);
 
@@ -28,9 +31,15 @@ export function imageSrc(relPath: string): string {
   return convertFileSrc(toAbs(relPath));
 }
 
+/** The cover: always an image (other files can't be the cover). */
 export function coverOf(images: MediaImage[]): MediaImage | undefined {
-  return images.find((i) => i.isCover) ?? images[0];
+  const pictures = images.filter((i) => i.fileType === "image");
+  return pictures.find((i) => i.isCover) ?? pictures[0];
 }
+
+/** Opens an item file in its default app / shows it in Explorer. */
+export const openItemFile = (relPath: string) => openPath(toAbs(relPath));
+export const showItemFileInFolder = (relPath: string) => revealItemInDir(toAbs(relPath));
 
 // ---------------------------------------------------------------- drafts (form state)
 
@@ -39,9 +48,22 @@ function newDraft(fileName: string, bytes: Uint8Array): ImageDraft {
   return { key: newId(), kind: "new", bytes, fileName, previewUrl: URL.createObjectURL(blob) };
 }
 
+/** Only images can be the cover. */
+export function isImageDraft(d: ImageDraft): boolean {
+  if (d.kind === "stored") return d.fileType === "image";
+  return d.kind !== "file";
+}
+
+/** File type of a draft, for icons. */
+export const draftFileType = (d: ImageDraft): FileType =>
+  d.kind === "stored" || d.kind === "file" ? d.fileType : "image";
+
+/** Image (or video thumbnail) to show for a draft; "" if the file has none. */
 export function draftSrc(d: ImageDraft): string {
   if (d.kind === "new") return d.previewUrl;
-  return imageSrc(d.kind === "stored" ? d.thumbnailPath : d.path);
+  if (d.kind === "file") return "";
+  if (d.kind === "stored") return d.thumbnailPath ? imageSrc(d.thumbnailPath) : "";
+  return imageSrc(d.path);
 }
 
 export function draftFromDefault(path: string): ImageDraft {
@@ -55,29 +77,45 @@ export function selectionFromImages(images: MediaImage[]): ImageSelection {
     .map((img) =>
       isDefaultImagePath(img.path)
         ? { key: img.id, kind: "default", path: img.path }
-        : { key: img.id, kind: "stored", path: img.path, thumbnailPath: img.thumbnailPath },
+        : {
+            key: img.id,
+            kind: "stored",
+            path: img.path,
+            thumbnailPath: img.thumbnailPath,
+            fileType: img.fileType,
+            fileName: img.fileName,
+            fileSize: img.fileSize,
+          },
     );
   return { drafts, coverKey: coverOf(images)?.id ?? drafts[0]?.key ?? "" };
 }
 
-/** Native file picker. Originals are only read, never moved or modified. */
-export async function pickImageFiles(): Promise<ImageDraft[]> {
-  const picked = await open({
-    multiple: true,
-    directory: false,
-    title: "Add images",
-    filters: [{ name: "Images", extensions: IMAGE_EXTENSIONS }],
-  });
+/** Native file picker for any file type. Originals are only read, never moved or modified. */
+export async function pickItemFiles(): Promise<ImageDraft[]> {
+  const picked = await open({ multiple: true, directory: false, title: "Add files" });
   if (!picked) return [];
   return draftsFromPaths(Array.isArray(picked) ? picked : [picked]);
 }
 
-/** Reads image files (from the picker or a drag & drop) into drafts; other files are skipped. */
+/**
+ * Files from the picker or a drag & drop (folders are expanded, like in References). Images are read
+ * into memory as before; any other file is only referenced by path and copied by the OS on save.
+ */
 export async function draftsFromPaths(paths: string[]): Promise<ImageDraft[]> {
   const drafts: ImageDraft[] = [];
-  for (const p of paths) {
-    if (!isSupportedImage(p)) continue;
-    drafts.push(newDraft(baseName(p), await readFile(p)));
+  for (const source of await sourcesFromPaths(paths)) {
+    if (source.fileType === "image" && isSupportedImage(source.name)) {
+      drafts.push(newDraft(source.name, await readFile(source.path)));
+    } else {
+      drafts.push({
+        key: newId(),
+        kind: "file",
+        sourcePath: source.path,
+        fileName: source.name,
+        fileSize: source.size,
+        fileType: source.fileType,
+      });
+    }
   }
   return drafts;
 }
@@ -205,9 +243,31 @@ export async function persistImages(folder: string, selection: ImageSelection): 
   for (const [position, d] of selection.drafts.entries()) {
     let path: string;
     let thumbnailPath: string;
+    let fileType: FileType = "image";
+    let fileName: string | null = null;
+    let fileSize: number | null = null;
     if (d.kind === "default") {
       path = thumbnailPath = d.path;
+    } else if (d.kind === "file") {
+      // Any other file: copied as-is by the OS (videos can be large), with a frame as thumbnail for videos.
+      const stem = shortId();
+      const ext = extOf(d.fileName);
+      path = joinRel(folder, ext ? `${stem}.${ext}` : stem);
+      await copyFile(d.sourcePath, toAbs(path));
+      thumbnailPath = "";
+      if (d.fileType === "video") {
+        const thumb = await makeVideoThumbnail(path);
+        if (thumb) {
+          thumbnailPath = joinRel(folder, `${stem}.thumb.${thumb.ext}`);
+          await writeBytes(thumbnailPath, thumb.bytes);
+        }
+      }
+      fileType = d.fileType;
+      fileName = d.fileName;
+      fileSize = d.fileSize;
     } else if (d.kind === "new") {
+      fileName = d.fileName;
+      fileSize = d.bytes.length;
       const stem = shortId();
       const ext = extOf(d.fileName) || "img";
       path = joinRel(folder, `${stem}.${ext}`);
@@ -222,10 +282,14 @@ export async function persistImages(folder: string, selection: ImageSelection): 
     } else if (d.path.startsWith(folder + "/")) {
       path = d.path;
       thumbnailPath = d.thumbnailPath;
+      ({ fileType, fileName, fileSize } = d);
     } else {
+      ({ fileType, fileName, fileSize } = d);
       path = await freeName(folder, baseName(d.path));
       await moveFile(d.path, path);
-      if (d.thumbnailPath === d.path) {
+      if (!d.thumbnailPath) {
+        thumbnailPath = "";
+      } else if (d.thumbnailPath === d.path) {
         thumbnailPath = path;
       } else if (await pathExists(d.thumbnailPath)) {
         thumbnailPath = await freeName(folder, baseName(d.thumbnailPath));
@@ -234,9 +298,22 @@ export async function persistImages(folder: string, selection: ImageSelection): 
         thumbnailPath = path;
       }
     }
-    result.push({ id: newId(), path, thumbnailPath, isCover: d.key === selection.coverKey, position });
+    result.push({
+      id: newId(),
+      path,
+      thumbnailPath,
+      // Only images can be the cover.
+      isCover: d.key === selection.coverKey && fileType === "image",
+      position,
+      fileType,
+      fileName,
+      fileSize,
+    });
   }
-  if (result.length && !result.some((i) => i.isCover)) result[0].isCover = true;
+  if (!result.some((i) => i.isCover)) {
+    const firstImage = result.find((i) => i.fileType === "image");
+    if (firstImage) firstImage.isCover = true;
+  }
   return result;
 }
 
@@ -245,7 +322,7 @@ export async function deleteUnusedImageFiles(previous: MediaImage[], current: Me
   const keep = new Set(current.flatMap((i) => [i.path, i.thumbnailPath]));
   for (const img of previous) {
     for (const p of [img.path, img.thumbnailPath]) {
-      if (!keep.has(p) && !isDefaultImagePath(p)) await removePath(p).catch(() => undefined);
+      if (p && !keep.has(p) && !isDefaultImagePath(p)) await removePath(p).catch(() => undefined);
     }
   }
 }
