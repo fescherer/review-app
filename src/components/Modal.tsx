@@ -6,7 +6,7 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   size?: "md" | "lg" | "xl";
-  /** Disable closing with Escape/backdrop, e.g. while saving. */
+  /** Disable closing (✕ and Escape), e.g. while saving. Clicking outside never closes a modal. */
   locked?: boolean;
 }
 
@@ -22,12 +22,7 @@ export function Modal({ title, onClose, children, footer, size = "lg", locked }:
   }, [onClose, locked]);
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !locked) onClose();
-      }}
-    >
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div
         role="dialog"
         aria-modal="true"
