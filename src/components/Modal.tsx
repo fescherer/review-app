@@ -8,11 +8,16 @@ interface Props {
   size?: "md" | "lg" | "xl";
   /** Disable closing (✕ and Escape), e.g. while saving. Clicking outside never closes a modal. */
   locked?: boolean;
+  /**
+   * For two-column detail views: the popup is at most 90vh tall and the body doesn't scroll as a whole;
+   * the children's columns scroll on their own (below the md breakpoint the body scrolls as usual).
+   */
+  columnScroll?: boolean;
 }
 
 const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl" };
 
-export function Modal({ title, onClose, children, footer, size = "lg", locked }: Props) {
+export function Modal({ title, onClose, children, footer, size = "lg", locked, columnScroll }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !locked) onClose();
@@ -26,7 +31,7 @@ export function Modal({ title, onClose, children, footer, size = "lg", locked }:
       <div
         role="dialog"
         aria-modal="true"
-        className={`flex max-h-full w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl`}
+        className={`flex ${columnScroll ? "max-h-[90vh]" : "max-h-full"} w-full ${WIDTHS[size]} flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl`}
       >
         {title !== undefined && (
           <div className="flex items-center justify-between gap-4 border-b border-zinc-800 px-5 py-3.5">
@@ -36,7 +41,11 @@ export function Modal({ title, onClose, children, footer, size = "lg", locked }:
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto p-5 ${columnScroll ? "md:flex md:flex-col md:overflow-hidden" : ""}`}
+        >
+          {children}
+        </div>
         {footer && <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3.5">{footer}</div>}
       </div>
     </div>
