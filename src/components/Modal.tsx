@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 interface Props {
   title?: ReactNode;
@@ -6,8 +6,13 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   size?: "md" | "lg" | "xl";
-  /** Disable closing (✕ and Escape), e.g. while saving. Clicking outside never closes a modal. */
+  /** Disable closing (✕, Escape and clicking outside), e.g. while saving. */
   locked?: boolean;
+  /**
+   * Close when clicking outside. Only for views of an existing item (details); create/edit forms leave it
+   * off so a stray click can't lose what was typed.
+   */
+  closeOnBackdrop?: boolean;
   /**
    * For two-column detail views: the popup is at most 90vh tall and the body doesn't scroll as a whole;
    * the children's columns scroll on their own (below the md breakpoint the body scrolls as usual).
@@ -17,7 +22,10 @@ interface Props {
 
 const WIDTHS = { md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl" };
 
-export function Modal({ title, onClose, children, footer, size = "lg", locked, columnScroll }: Props) {
+export function Modal({ title, onClose, children, footer, size = "lg", locked, columnScroll, closeOnBackdrop = false }: Props) {
+  // Only a click that starts and ends on the backdrop closes (not a text selection dragged outside).
+  const pressedOnBackdrop = useRef(false);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !locked) onClose();
@@ -27,7 +35,13 @@ export function Modal({ title, onClose, children, footer, size = "lg", locked, c
   }, [onClose, locked]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onMouseDown={(e) => (pressedOnBackdrop.current = e.target === e.currentTarget)}
+      onClick={(e) => {
+        if (closeOnBackdrop && !locked && pressedOnBackdrop.current && e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         role="dialog"
         aria-modal="true"

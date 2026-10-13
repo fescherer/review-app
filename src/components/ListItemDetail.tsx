@@ -20,6 +20,7 @@ export function ListItemDetail({ item, listName, onEdit, onDelete, onMarkDone, o
       onClose={onClose}
       size="xl"
       columnScroll
+      closeOnBackdrop
       footer={
         <>
           <button className="btn btn-danger mr-auto" onClick={onDelete}>

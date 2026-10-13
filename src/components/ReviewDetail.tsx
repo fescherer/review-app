@@ -20,6 +20,7 @@ export function ReviewDetail({ review, tag, onEdit, onDelete, onClose }: Props) 
       onClose={onClose}
       size="xl"
       columnScroll
+      closeOnBackdrop
       footer={
         <>
           <button className="btn btn-danger mr-auto" onClick={onDelete}>

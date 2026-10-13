@@ -57,6 +57,8 @@ export function ReferenceDetail({ reference: r, allTags, onCreateTag, onSave, on
       title={r.title}
       onClose={onClose}
       size="xl"
+      // Also an edit form: clicking outside closes it only while nothing has been changed.
+      closeOnBackdrop={!dirty}
       locked={saving}
       footer={
         <>
