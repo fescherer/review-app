@@ -128,3 +128,13 @@ body {
 .markdown strong {
   color: var(--color-zinc-100);
 }
+
+/* Fade between media in the item detail gallery */
+@keyframes gallery-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
