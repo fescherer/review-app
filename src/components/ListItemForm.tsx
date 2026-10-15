@@ -86,11 +86,11 @@ export function ListItemForm({ heading, lists, listId: initialListId, item, onSu
           </div>
         </div>
         <div>
-          <label className="label" htmlFor="lf-desc">Why do you want it?</label>
+          <label className="label" htmlFor="lf-desc">Description</label>
           <textarea
             id="lf-desc"
             className="input min-h-28 resize-y"
-            placeholder="A friend recommended it, saw the trailer… Markdown is supported."
+            placeholder="Why do you want it, where you saw it, notes, details… Markdown is supported."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />

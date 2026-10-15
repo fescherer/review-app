@@ -21,13 +21,15 @@ const SORT_LABELS: Record<ReviewSortField, string> = {
 
 type Panel = { kind: "new" } | { kind: "view"; id: string } | { kind: "edit"; id: string } | null;
 
-export function ReviewsPage() {
+/** `resetSignal` changes when the Reviews tab is clicked again: close any open view. */
+export function ReviewsPage({ resetSignal = 0 }: { resetSignal?: number }) {
   const toast = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
   const [items, setItems] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ReviewFilters>(reviews.DEFAULT_FILTERS);
   const [panel, setPanel] = useState<Panel>(null);
+  useEffect(() => setPanel(null), [resetSignal]);
   const text = useDebounced(filters.text);
   const query = useMemo(() => ({ ...filters, text }), [filters, text]);
 

@@ -25,7 +25,8 @@ type TagMode = "and" | "or";
 const hasTags = (r: Reference, tagIds: ID[], mode: TagMode) =>
   tagIds.length === 0 || (mode === "and" ? tagIds.every((t) => r.tagIds.includes(t)) : tagIds.some((t) => r.tagIds.includes(t)));
 
-export function ReferencesPage() {
+/** `resetSignal` changes when the References tab is clicked again: close any open view. */
+export function ReferencesPage({ resetSignal = 0 }: { resetSignal?: number }) {
   const toast = useToast();
   const [all, setAll] = useState<Reference[]>([]);
   const [tags, setTags] = useState<RefTag[]>([]);
@@ -42,6 +43,7 @@ export function ReferencesPage() {
   const [textMatches, setTextMatches] = useState<Set<ID> | null>(null);
 
   const [openId, setOpenId] = useState<ID | null>(null);
+  useEffect(() => setOpenId(null), [resetSignal]);
   const [importing, setImporting] = useState<ImportSource[] | null>(null);
   const [collecting, setCollecting] = useState(false);
 

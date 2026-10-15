@@ -13,7 +13,8 @@ import * as lists from "../services/lists";
 import { listTags } from "../services/tags";
 import type { ListItem, MediaList, Tag } from "../types";
 
-export function FindPage() {
+/** `resetSignal` changes when the Lists tab is clicked again: back to the lists home (like "← Lists"). */
+export function FindPage({ resetSignal = 0 }: { resetSignal?: number }) {
   const toast = useToast();
   const [allLists, setAllLists] = useState<MediaList[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -32,6 +33,13 @@ export function FindPage() {
   useEffect(() => {
     void reloadLists();
   }, [reloadLists]);
+
+  // Lists tab clicked again: same as the "← Lists" button.
+  useEffect(() => {
+    if (!resetSignal) return;
+    setOpenId(null);
+    void reloadLists();
+  }, [resetSignal, reloadLists]);
 
   const openList = allLists.find((l) => l.id === openId);
   if (openList) {
@@ -103,7 +111,7 @@ function ListsOverview({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Find something to watch, read or play</h1>
+          <h1 className="text-xl font-semibold">Lists</h1>
           <p className="text-sm text-zinc-400">Pick a list. Items come up in a new random order every time.</p>
         </div>
         <form onSubmit={create} className="flex gap-2">

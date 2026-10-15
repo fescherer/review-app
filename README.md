@@ -87,7 +87,7 @@ Tips:
   an image (uploaded or a default cover) can be the cover: click it to choose; the first image is the default.
   Drag to reorder. The detail view previews every file like the References tab: images with zoom, playable
   videos, rendered text/Markdown, and for anything else the file icon with "Open in default app" / "Show in folder".
-- **Find**: lists such as watchlists or reading lists. Items appear in a new random order (Fisher–Yates) every time
+- **Lists**: watchlists, reading lists and the like. Items appear in a new random order (Fisher–Yates) every time
   you open a list, and **Shuffle again** reshuffles them. **Mark as done** opens a pre-filled review form. Saving it
   moves the images into the review's folder and removes the item from the list.
 - **References**: a flat library of any files (images, videos, text, PDFs, ...) organized by free-form tags
@@ -112,7 +112,7 @@ src/
   services/     business logic + zod validation: dataFolder, fileSystem, images, tags, reviews,
                 lists, listItems, exportService, config (tauri-plugin-store)
   components/   reusable UI (cards, stars, image picker, forms, modals)
-  pages/        Reviews, Find, Settings, Welcome
+  pages/        Reviews, Lists (FindPage.tsx), References, Settings, Welcome
   assets/defaults/  placeholder cover SVGs bundled into the app
 src-tauri/
   src/lib.rs    plugin registration + one command (allow_data_folder) that grants fs/asset access

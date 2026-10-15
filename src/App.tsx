@@ -24,6 +24,16 @@ export default function App() {
   const [boot, setBoot] = useState<Boot>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("reviews");
+  /** Bumped when the active tab is clicked again: the page goes back to its main view. */
+  const [resetSignal, setResetSignal] = useState(0);
+
+  const selectTab = (next: Tab) => {
+    if (next === tab) {
+      setResetSignal((n) => n + 1);
+      window.scrollTo({ top: 0 });
+    }
+    setTab(next);
+  };
 
   /** Opens a data folder; returns an error message, or null on success. */
   const open = useCallback(async (path: string): Promise<string | null> => {
@@ -116,7 +126,7 @@ export default function App() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "reviews", label: "Reviews" },
-    { id: "find", label: "Find" },
+    { id: "find", label: "Lists" },
     { id: "references", label: "References" },
   ];
 
@@ -128,7 +138,7 @@ export default function App() {
             <span className="text-amber-400">★</span> Media Review
           </span>
           {tabs.map((t) => (
-            <TabButton key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
+            <TabButton key={t.id} active={tab === t.id} onClick={() => selectTab(t.id)}>
               {t.label}
             </TabButton>
           ))}
@@ -139,9 +149,9 @@ export default function App() {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6" key={boot.root}>
-        {tab === "reviews" && <ReviewsPage />}
-        {tab === "find" && <FindPage />}
-        {tab === "references" && <ReferencesPage />}
+        {tab === "reviews" && <ReviewsPage resetSignal={resetSignal} />}
+        {tab === "find" && <FindPage resetSignal={resetSignal} />}
+        {tab === "references" && <ReferencesPage resetSignal={resetSignal} />}
         {tab === "settings" && <SettingsPage onChangeFolder={chooseFolder} />}
       </main>
     </div>
